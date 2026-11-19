@@ -32,7 +32,7 @@ export const seedProefapp = async (
       .where(eq(app.slug, "proefapp"));
     if (existing?.publicUrl !== publicUrl.data) {
       throw new Error(
-        `De proefapp staat geregistreerd op ${existing?.publicUrl ?? "onbekend"}, maar PROEFAPP_URL is ${publicUrl.data}. Pas het adres in de tabel app aan of herstel PROEFAPP_URL.`,
+        `De proefapp staat geregistreerd op ${existing?.publicUrl ?? "onbekend"}, maar PROEFAPP_URL is ${publicUrl.data}. Herstel PROEFAPP_URL in infra/.env, of verhuis de proefapp met: update app set public_url = '${publicUrl.data}' where slug = 'proefapp';`,
       );
     }
     return false;

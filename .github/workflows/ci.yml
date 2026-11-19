@@ -67,7 +67,8 @@ jobs:
           cd infra
           printf 'POSTGRES_PASSWORD=%s\nPUBLIC_URL=http://127.0.0.1:8450\nPROEFAPP_URL=http://127.0.0.1:8451\n' "$(openssl rand -hex 32)" > .env
           docker compose up -d --build --wait --wait-timeout 180 || { docker compose ps; docker compose logs; exit 1; }
-          curl -fsS http://127.0.0.1:8450/health
-          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8451/)" = 302
-          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8450/gate/verify)" = 404
+          check() { test "$(curl -s -o /dev/null -w '%{http_code}' "$1")" = "$2" || { echo "FOUT: $1 gaf geen $2"; docker compose ps; docker compose logs; exit 1; }; }
+          check http://127.0.0.1:8450/health 200
+          check http://127.0.0.1:8451/ 302
+          check http://127.0.0.1:8450/gate/verify 404
           docker compose down -v

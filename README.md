@@ -14,3 +14,12 @@ sudo tailscale serve --bg --https=8451 http://127.0.0.1:8451
 ```
 Verificatie: `https://node3.tail489231.ts.net:8450/health` toont `"status":"ok"`, en
 `https://node3.tail489231.ts.net:8451/` stuurt door naar `…:8450/login?terug=…`.
+
+## Adres van de proefapp wijzigen
+De poort start niet als `PROEFAPP_URL` afwijkt van het geregistreerde adres (zo blijft hij nooit stil naar een oud adres verwijzen). Verhuizen:
+```bash
+cd ~/apps/app-poort/infra
+docker compose exec db psql -U poort -d poort -c "update app set public_url = 'https://NIEUW-ADRES' where slug = 'proefapp';"
+docker compose up -d
+```
+Verificatie: `docker compose ps` toont `poort` als `healthy`.

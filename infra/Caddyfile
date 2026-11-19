@@ -20,11 +20,13 @@
 			copy_headers X-Poort-User X-Poort-Entitlements
 		}
 		# 3. Doorsturen zonder de cookies van de poort (naam begint met `poort.`): een app krijgt
-		#    de sessie nooit in handen, en kan zo'n cookie ook niet zelf zetten of overschrijven.
+		#    de sessie nooit in handen. Set-Cookie-koppen van een app met zo'n naam worden gewist.
+		#    Scripts op een app-pagina kunnen nog wel cookies zetten zolang poort en apps één
+		#    hostnaam delen (B-006/B-026); dat vervalt met een eigen hostnaam voor de poort.
 		reverse_proxy {args[1]} {
 			header_up Cookie "(^|; *)(__Secure-|__Host-)?poort[.][^=;]*=[^;]*" ""
 			header_up Cookie "^(; *)+" ""
-			header_down Set-Cookie "^ *(__Secure-|__Host-)?poort[.].*$" ""
+			header_down Set-Cookie "^[ =]*(__Secure-|__Host-)?poort[.].*$" ""
 		}
 	}
 }

@@ -22,7 +22,7 @@ Gedraaid op Caddy 2.10.2 (binnen het bereik van CVE-2026-30851) en 2.11.4: beide
 | Vervalste `X-Poort-App`, `X-Forwarded-Host`, `X-Forwarded-Uri` | Genegeerd |
 | POST zonder sessie | Terug naar de startpagina van de app |
 | Cookies van de poort bereiken de app niet; eigen cookies van de app wel, en de kop blijft geldig | Bevestigd |
-| Een app kan de cookies van de poort niet zetten of overschrijven | Bevestigd |
+| Set-Cookie-koppen van een app met een poort-naam (ook naamloos) worden gewist | Bevestigd |
 | `/gate/verify` van buiten, 6 schrijfwijzen | 404 (6×) |
 | `/health` via Caddy | 200 |
 
@@ -37,3 +37,8 @@ Met alleen de bestanden die `.dockerignore` toelaat: `pnpm install --frozen-lock
 - `tailscale serve` vóór Caddy op node3.
 - Gitleaks: staat in CI, lokaal niet gedraaid.
 - Of de Docker-tag `caddy:2.11.4` bestaat: de versie zelf bestaat (binary opgehaald), het register kon ik niet bereiken.
+
+## Onafhankelijke review
+Drie rondes door een aparte reviewer met schone context (architect, code, security), alleen-lezen. Ronde 1: 22 bevindingen. Ronde 2: 19 hersteld, 3 deels, 7 nieuwe. Ronde 3: 5 hersteld, 2 deels, 4 nieuwe. De herstellingen van ronde 3 (B-032, B-034, B-035) zijn getest maar niet meer door de reviewer bekeken: de grens is 3 rondes per poort.
+
+Open na fase 1: B-006 en B-026 (eigen hostnaam), B-008 (images vastzetten op digest), B-021 (aparte databasegebruiker), B-025 en B-035 (bewijs van Docker Compose in GitHub Actions), B-033 (fase 3).
