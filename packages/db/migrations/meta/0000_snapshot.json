@@ -1,5 +1,5 @@
 {
-  "id": "2e33ce69-be17-48d7-a14d-c9ce8fcedd55",
+  "id": "97d2c1ca-e634-47e1-b368-e46600956c76",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -54,6 +54,21 @@
           "columns": [
             {
               "expression": "at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "audit_log_user": {
+          "name": "audit_log_user",
+          "columns": [
+            {
+              "expression": "user_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -157,7 +172,23 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "account_user": {
+          "name": "account_user",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "account_user_id_user_id_fk": {
           "name": "account_user_id_user_id_fk",
@@ -230,7 +261,23 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "session_user": {
+          "name": "session_user",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "session_user_id_user_id_fk": {
           "name": "session_user_id_user_id_fk",
@@ -291,7 +338,8 @@
         },
         "role": {
           "name": "role",
-          "type": "text",
+          "type": "user_role",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
           "default": "'klant'"
@@ -368,7 +416,23 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "verification_identifier": {
+          "name": "verification_identifier",
+          "columns": [
+            {
+              "expression": "identifier",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -408,7 +472,7 @@
           "tableTo": "user",
           "columnsFrom": ["user_id"],
           "columnsTo": ["id"],
-          "onDelete": "cascade",
+          "onDelete": "restrict",
           "onUpdate": "no action"
         }
       },
@@ -447,6 +511,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "subscription_id": {
+          "name": "subscription_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
         "key": {
           "name": "key",
           "type": "text",
@@ -468,7 +538,8 @@
         },
         "source": {
           "name": "source",
-          "type": "text",
+          "type": "billing_source",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
@@ -480,7 +551,29 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "entitlement_user_app": {
+          "name": "entitlement_user_app",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "app_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "entitlement_user_id_user_id_fk": {
           "name": "entitlement_user_id_user_id_fk",
@@ -499,18 +592,32 @@
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
+        },
+        "entitlement_subscription_id_subscription_id_fk": {
+          "name": "entitlement_subscription_id_subscription_id_fk",
+          "tableFrom": "entitlement",
+          "tableTo": "subscription",
+          "columnsFrom": ["subscription_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "entitlement_user_app_key": {
-          "name": "entitlement_user_app_key",
+        "entitlement_subscription_id_unique": {
+          "name": "entitlement_subscription_id_unique",
           "nullsNotDistinct": false,
-          "columns": ["user_id", "app_id", "key"]
+          "columns": ["subscription_id"]
         }
       },
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "entitlement_key_format": {
+          "name": "entitlement_key_format",
+          "value": "\"entitlement\".\"key\" ~ '^[a-z0-9][a-z0-9_-]{0,62}$'"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.subscription": {
@@ -538,7 +645,8 @@
         },
         "source": {
           "name": "source",
-          "type": "text",
+          "type": "billing_source",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
@@ -581,7 +689,38 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "subscription_user": {
+          "name": "subscription_user",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "subscription_plan": {
+          "name": "subscription_plan",
+          "columns": [
+            {
+              "expression": "plan_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "subscription_user_id_user_id_fk": {
           "name": "subscription_user_id_user_id_fk",
@@ -589,7 +728,7 @@
           "tableTo": "user",
           "columnsFrom": ["user_id"],
           "columnsTo": ["id"],
-          "onDelete": "cascade",
+          "onDelete": "restrict",
           "onUpdate": "no action"
         },
         "subscription_plan_id_plan_id_fk": {
@@ -627,7 +766,8 @@
         },
         "provider": {
           "name": "provider",
-          "type": "text",
+          "type": "webhook_provider",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
@@ -700,12 +840,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "upstream": {
-          "name": "upstream",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
         "active": {
           "name": "active",
           "type": "boolean",
@@ -737,7 +871,16 @@
         }
       },
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "app_slug_format": {
+          "name": "app_slug_format",
+          "value": "\"app\".\"slug\" ~ '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$'"
+        },
+        "app_public_url_origin": {
+          "name": "app_public_url_origin",
+          "value": "\"app\".\"public_url\" ~ '^https?://[^/?#@[:space:]]+$'"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.plan": {
@@ -765,7 +908,8 @@
         },
         "interval": {
           "name": "interval",
-          "type": "text",
+          "type": "plan_interval",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
@@ -803,7 +947,23 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "plan_app": {
+          "name": "plan_app",
+          "columns": [
+            {
+              "expression": "app_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "plan_app_id_app_id_fk": {
           "name": "plan_app_id_app_id_fk",
@@ -821,14 +981,49 @@
           "name": "plan_stripe_price_id_unique",
           "nullsNotDistinct": false,
           "columns": ["stripe_price_id"]
+        },
+        "plan_app_name_interval": {
+          "name": "plan_app_name_interval",
+          "nullsNotDistinct": false,
+          "columns": ["app_id", "name", "interval"]
         }
       },
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "plan_trial_days": {
+          "name": "plan_trial_days",
+          "value": "\"plan\".\"trial_days\" between 0 and 365"
+        },
+        "plan_entitlement_key_format": {
+          "name": "plan_entitlement_key_format",
+          "value": "\"plan\".\"entitlement_key\" ~ '^[a-z0-9][a-z0-9_-]{0,62}$'"
+        }
+      },
       "isRLSEnabled": false
     }
   },
-  "enums": {},
+  "enums": {
+    "public.billing_source": {
+      "name": "billing_source",
+      "schema": "public",
+      "values": ["stripe", "app_store", "play"]
+    },
+    "public.plan_interval": {
+      "name": "plan_interval",
+      "schema": "public",
+      "values": ["maand", "jaar"]
+    },
+    "public.user_role": {
+      "name": "user_role",
+      "schema": "public",
+      "values": ["klant", "beheerder"]
+    },
+    "public.webhook_provider": {
+      "name": "webhook_provider",
+      "schema": "public",
+      "values": ["stripe", "revenuecat"]
+    }
+  },
   "schemas": {},
   "sequences": {},
   "roles": {},

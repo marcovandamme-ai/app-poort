@@ -7,5 +7,6 @@
 - Geheimen alleen in `infra/.env` op de node. Nooit in code, logs, tests of chat.
 - Nieuwe dependency alleen via `dependency-allowlist.json`, na akkoord van Marco.
 - De poort beslist toegang alleen op: sessie, `X-Poort-App` (door Caddy gezet) en de tabel `entitlement`.
-- Elke app achter de poort krijgt in Caddy: `request_header -X-Poort-*`, `forward_auth` met vaste `X-Poort-App`.
+- Elke app achter de poort krijgt in Caddy precies één regel: `import achter_poort <slug> <upstream>`. Nooit de regels los overnemen: de volgorde in `route { }` is de beveiliging.
+- Cookies van de poort beginnen met `poort.`; een app krijgt ze nooit te zien.
 - Niets installeren of draaien op de MacBook. Draaien op node3 via Docker Compose.

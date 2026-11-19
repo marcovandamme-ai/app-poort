@@ -8,9 +8,9 @@ Versie 2026-11-19 · chat "App-poort"
 | Validatie | Zod, `@hono/zod-openapi` | STACK.md |
 | Database | PostgreSQL 17 + Drizzle | STACK.md |
 | Auth | Better Auth, magic-link | STACK.md; geen wachtwoorden |
-| Betalen | Stripe (`stripe` SDK): Checkout, Billing, Tax, klantportaal | Overdracht. Nieuw op de allowlist |
+| Betalen | Stripe (`stripe` SDK): Checkout, Billing, Tax, klantportaal | Overdracht. Op de allowlist sinds akkoord 2026-11-19 |
 | Proxy | Caddy met `forward_auth` | Overdracht |
-| E-mail | SMTP via `nodemailer`; test: Mailpit-container | Nieuw op de allowlist |
+| E-mail | SMTP via `nodemailer`; test: Mailpit-container | Op de allowlist sinds akkoord 2026-11-19 |
 | Test | Vitest, Playwright (Chromium, WebKit, Firefox), Stripe CLI | Overdracht |
 | CI | GitHub Actions: `pnpm verify`, Gitleaks, `pnpm audit` | repo-template |
 | Draaien | Docker Compose op node3 | Overdracht |
@@ -26,11 +26,11 @@ Versie 2026-11-19 · chat "App-poort"
 | Tabel | Velden | Opmerking |
 |---|---|---|
 | `user`, `session`, `account`, `verification` | Better Auth-standaard; `user.role` = klant of beheerder | |
-| `app` | id, slug (uniek), naam, public_url (uniek), upstream, actief | Eén regel per aangesloten app; het terugkeeradres na inloggen komt altijd uit `public_url` |
+| `app` | id, slug (uniek), naam, public_url (uniek, alleen schema+host+poort), actief | Eén regel per aangesloten app; het terugkeeradres na inloggen komt altijd uit `public_url`. Waar het verkeer heen gaat staat alleen in de Caddyfile |
 | `plan` | id, app_id, naam, interval (maand/jaar), proefdagen, stripe_price_id, entitlement_key, actief | Prijs en valuta staan in Stripe |
-| `customer` | user_id (uniek), stripe_customer_id (uniek) | |
+| `customer` | user_id (uniek), stripe_customer_id (uniek) | Een gebruiker met klant- of abonnementsregel kan niet verwijderd worden voordat de Stripe-kant is afgesloten |
 | `subscription` | id, user_id, plan_id, bron (stripe/app_store/play), extern_id (uniek), status, periode_einde, opzeggen_bij_einde, respijt_tot | Spiegel; Stripe is de bron |
-| `entitlement` | user_id, app_id, key, actief, verloopt_op, bron, bijgewerkt_op; uniek (user_id, app_id, key) | Enige tabel die de toegang bepaalt; stores voegen later hier in |
+| `entitlement` | user_id, app_id, subscription_id (uniek), key, actief, verloopt_op, bron, bijgewerkt_op | Enige tabel die de toegang bepaalt: één regel per abonnement dat toegang geeft, zodat het stoppen van het ene abonnement de toegang van het andere niet weghaalt. Stores voegen later hier in |
 | `webhook_event` | provider, event_id (uniek samen), type, ontvangen_op, verwerkt_op | Idempotentie |
 | `audit_log` | id, user_id, actie, object, tijdstip, metadata (jsonb) | Zonder betaal- of sessiegegevens |
 
@@ -39,7 +39,7 @@ Versie 2026-11-19 · chat "App-poort"
 |---|---|---|---|
 | GET | `/health` | Liveness + databasecheck | 200, 503 |
 | * | `/api/auth/*` | Better Auth | Better Auth; 429 bij limiet |
-| GET | `/gate/verify` | Toegangscontrole voor Caddy | 200, 302, 403 |
+| GET | `/gate/verify` | Toegangscontrole voor Caddy | 200, 302 (inloggen of prijzen), 400 (niet via Caddy), 404 (onbekende app) |
 | GET | `/v1/me` | Profiel, abonnementen, toegang | 200, 401 |
 | GET | `/v1/me/export` | Eigen gegevens als JSON | 200, 401 |
 | DELETE | `/v1/me` | Account verwijderen | 204, 401 |
@@ -54,13 +54,13 @@ Pagina's: `/login`, `/apps/:slug/prijzen`, `/account`, `/beheer`, `/voorwaarden`
 
 ## Mappenstructuur
 ```
-apps/poort/src/   routes/ (per pad één bestand)  pages/ (JSX)  services/ (toegang, checkout, webhook)
+apps/poort/src/   routes/ (per pad één bestand)  pages/ (hono/html)  services/ (toegang, checkout, webhook)
                   auth.ts  env.ts  app.ts  server.ts
 apps/proefapp/    één Hono-bestand met de teller; leest X-Poort-User
 packages/shared/  Zod-schema's, foutformaat
 packages/db/      Drizzle-schema, migraties, seed
 infra/            docker-compose.yml  Caddyfile  backup.sh  restore.sh  deploy.sh
-e2e/              Playwright
+e2e/              Ketentest met echte Caddy; later Playwright
 tooling/guard/    uit repo-template
 docs/             specs, architectuur, security-rapport, beheer, oplevering
 ```
@@ -77,6 +77,9 @@ docs/             specs, architectuur, security-rapport, beheer, oplevering
 | Terugkeer-URL | Open redirect via `terug=` | Adres = geregistreerde `public_url` + pad; nooit uit request-headers |
 | App-keuze | Bezoeker laat een andere app controleren dan hij opvraagt (B-001) | `X-Poort-App` vast per Caddy-blok; `X-Forwarded-Host` wordt niet gebruikt |
 | Geheimen | Sleutels in repo of log | `.env` op node3, Zod-gevalideerd, Gitleaks over de historie, logs zonder tokens |
+| Sessiecookie | Een app achter de poort (of een lek daarin) krijgt het cookie van de poort in handen (B-006) | Caddy haalt alle `poort.*`-cookies weg vóór het verzoek naar een app gaat; ketentest bewaakt dit. Restrisico: andere diensten op dezelfde hostnaam maar een andere poort krijgen het cookie wel; vervalt met een eigen hostnaam voor de poort |
+| HSTS | Geldt voor alle poorten van een hostnaam en breekt andere diensten op node3 (B-007) | Standaard uit; alleen `HSTS=true` op een eigen domein |
+| Logboek | Drizzle zet queryparameters (tokens, e-mailadressen) in foutmeldingen (B-005) | `formatError` knipt parameters weg; test bewaakt dit |
 | Beschikbaarheid | Poort plat = alle apps dicht | Healthcheck, automatische herstart, back-up + herstelproef; restrisico thuisverbinding |
 
 ## 5 fasen

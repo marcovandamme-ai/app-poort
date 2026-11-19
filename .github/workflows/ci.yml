@@ -1,6 +1,7 @@
 name: ci
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions:
@@ -21,6 +22,7 @@ jobs:
           --health-cmd "pg_isready -U poort" --health-interval 5s --health-timeout 3s --health-retries 10
     env:
       TEST_DATABASE_URL: postgres://poort:ci-only@127.0.0.1:5432/poort_test
+      CADDY_VERSION: "2.11.4"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -32,13 +34,28 @@ jobs:
         run: corepack enable
       - name: Install
         run: pnpm install --frozen-lockfile
-      - name: Verify (lint, typecheck, test, deps, lines)
+      - name: Caddy ophalen voor de ketentest
+        run: |
+          curl -fsSL -o caddy.tgz "https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_amd64.tar.gz"
+          mkdir -p "$RUNNER_TEMP/caddy" && tar xzf caddy.tgz -C "$RUNNER_TEMP/caddy" caddy && rm caddy.tgz
+          echo "CADDY_BIN=$RUNNER_TEMP/caddy/caddy" >> "$GITHUB_ENV"
+      - name: Verify (lint, typecheck, alle tests incl. database en Caddy-keten, deps, lines)
         run: pnpm verify
+      - name: Caddyfile geldig
+        run: $CADDY_BIN validate --config infra/Caddyfile --adapter caddyfile
       - name: Kwetsbare pakketten
         run: pnpm audit --audit-level moderate
       - name: Gelekte sleutels (hele geschiedenis)
         run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest git /repo --redact --no-banner
-      - name: Caddyfile geldig
-        run: docker run --rm -v "$PWD/infra/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2 caddy validate --config /etc/caddy/Caddyfile
       - name: Container bouwt
         run: docker build -f infra/Dockerfile -t app-poort:ci .
+      - name: Rookproef in de container (migreren, registreren, starten, health)
+        run: |
+          run() { docker run --rm --network host --read-only --cap-drop ALL \
+            -e DATABASE_URL="$TEST_DATABASE_URL" -e PROEFAPP_URL=http://127.0.0.1:8081 \
+            -e PUBLIC_URL=http://127.0.0.1:8080 "$@"; }
+          run app-poort:ci node packages/db/src/migrate.ts
+          run app-poort:ci node packages/db/src/seed.ts
+          run -d --name poort app-poort:ci node apps/poort/src/server.ts
+          for i in $(seq 1 20); do curl -fsS http://127.0.0.1:3000/health && exit 0; sleep 1; done
+          docker logs poort; exit 1

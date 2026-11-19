@@ -42,6 +42,26 @@ describe("decideGate", () => {
     expect(decision).toEqual({ kind: "login", returnTo: `${APP.publicUrl}/` });
   });
 
+  it.each(["POST", "PUT", "DELETE", "PATCH"])(
+    "returns to the app root after a %s without a session",
+    async (method) => {
+      const decision = await decideGate(fakeGate(), { ...request, uri: "/plus", method });
+      expect(decision).toEqual({ kind: "login", returnTo: `${APP.publicUrl}/` });
+    },
+  );
+
+  it("keeps the page for a GET", async () => {
+    const decision = await decideGate(fakeGate(), { ...request, method: "GET" });
+    expect(decision).toEqual({ kind: "login", returnTo: `${APP.publicUrl}/teller?x=1` });
+  });
+
+  it("rejects input that is not a verify request", async () => {
+    expect(await decideGate(fakeGate(), null)).toEqual({ kind: "invalid" });
+    expect(await decideGate(fakeGate(), { ...request, uri: "/".repeat(5000) })).toEqual({
+      kind: "invalid",
+    });
+  });
+
   it("sends signed-in visitors without access to pricing", async () => {
     const deps = fakeGate({ resolveSession: async () => ({ userId: "u1" }) });
     expect(await decideGate(deps, request)).toEqual({ kind: "pricing", slug: APP.slug });

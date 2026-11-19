@@ -2,17 +2,20 @@
 import { fileURLToPath } from "node:url";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { createDb } from "./client.ts";
+import { parseDbEnv } from "./env.ts";
 
-const databaseUrl = process.env.DATABASE_URL;
-if (databaseUrl === undefined || databaseUrl === "") {
-  process.stderr.write("DATABASE_URL ontbreekt\n");
-  process.exit(1);
-}
+export const MIGRATIONS_FOLDER = fileURLToPath(new URL("../migrations", import.meta.url));
 
-const { db, close } = createDb(databaseUrl, 1);
-try {
-  await migrate(db, { migrationsFolder: fileURLToPath(new URL("../migrations", import.meta.url)) });
+export const runMigrations = async (source: Record<string, string | undefined>): Promise<void> => {
+  const { db, close } = createDb(parseDbEnv(source), 1);
+  try {
+    await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+  } finally {
+    await close();
+  }
+};
+
+if (import.meta.main) {
+  await runMigrations(process.env);
   process.stdout.write("migraties toegepast\n");
-} finally {
-  await close();
 }

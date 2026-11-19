@@ -7,7 +7,7 @@ Stand: fase 1 (skelet). De poort is voor iedereen dicht; inloggen komt in fase 2
 ## Draaien op node3 (intern, via Tailscale)
 ```bash
 cd ~/apps/app-poort/infra
-cp .env.example .env   # vul POSTGRES_PASSWORD in
+cp .env.example .env   # vul POSTGRES_PASSWORD in: openssl rand -hex 32
 docker compose up -d --build
 sudo tailscale serve --bg --https=8450 http://127.0.0.1:8450
 sudo tailscale serve --bg --https=8451 http://127.0.0.1:8451

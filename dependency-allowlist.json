@@ -36,6 +36,8 @@
     "postgres",
     "better-auth",
     "@better-auth/*",
+    "stripe",
+    "nodemailer",
     "react-native-purchases",
     "react-native-purchases-ui",
     "@sentry/*",

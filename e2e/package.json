@@ -1,0 +1,10 @@
+{
+  "name": "@poort/e2e",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@hono/node-server": "^2.0.0",
+    "@poort/shared": "workspace:*",
+    "hono": "^4.13.0"
+  }
+}

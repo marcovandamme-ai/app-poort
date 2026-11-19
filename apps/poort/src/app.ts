@@ -9,13 +9,14 @@ export interface AppDeps {
   readonly gate: GateDeps;
   readonly health: HealthDeps;
   readonly publicUrl: string;
+  readonly hsts: boolean;
   readonly logError: (error: unknown) => void;
 }
 
 export const createApp = (deps: AppDeps) => {
   const app = new Hono();
 
-  app.use(secureHeaders());
+  app.use(secureHeaders({ strictTransportSecurity: deps.hsts }));
   app.route("/health", healthRoutes(deps.health));
   app.route("/gate", gateRoutes(deps.gate, deps.publicUrl));
 

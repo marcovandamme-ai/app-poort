@@ -8,6 +8,7 @@ export const gateRoutes = (deps: GateDeps, publicUrl: string) =>
     const decision = await decideGate(deps, {
       appSlug: c.req.header(VERIFY_HEADERS.app),
       uri: c.req.header(VERIFY_HEADERS.uri),
+      method: c.req.header(VERIFY_HEADERS.method),
       cookie: c.req.header("Cookie"),
     });
 

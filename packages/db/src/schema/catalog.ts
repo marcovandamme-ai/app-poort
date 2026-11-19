@@ -1,27 +1,63 @@
-import { boolean, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  boolean,
+  check,
+  index,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uuid,
+} from "drizzle-orm/pg-core";
+import { planInterval } from "./enums.ts";
 
-/** One row per app behind the gate. `publicUrl` is the address visitors use, without trailing slash. */
-export const app = pgTable("app", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  slug: text("slug").notNull().unique(),
-  name: text("name").notNull(),
-  publicUrl: text("public_url").notNull().unique(),
-  upstream: text("upstream").notNull(),
-  active: boolean("active").notNull().default(true),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+/** Same rule as EntitlementKeySchema: a key must never contain the header separator. */
+export const KEY_PATTERN = "^[a-z0-9][a-z0-9_-]{0,62}$";
+
+/**
+ * One row per app behind the gate. `publicUrl` is the origin visitors use. Where Caddy sends
+ * the traffic is configured in the Caddyfile only, so there is one source of truth for routing.
+ */
+export const app = pgTable(
+  "app",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    slug: text("slug").notNull().unique(),
+    name: text("name").notNull(),
+    publicUrl: text("public_url").notNull().unique(),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("app_slug_format", sql`${table.slug} ~ '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$'`),
+    check("app_public_url_origin", sql`${table.publicUrl} ~ '^https?://[^/?#@[:space:]]+$'`),
+  ],
+);
 
 /** A sellable plan. Price and currency live in Stripe; we only keep the reference. */
-export const plan = pgTable("plan", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  appId: uuid("app_id")
-    .notNull()
-    .references(() => app.id, { onDelete: "restrict" }),
-  name: text("name").notNull(),
-  interval: text("interval", { enum: ["maand", "jaar"] }).notNull(),
-  trialDays: integer("trial_days").notNull().default(0),
-  stripePriceId: text("stripe_price_id").notNull().unique(),
-  entitlementKey: text("entitlement_key").notNull(),
-  active: boolean("active").notNull().default(true),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const plan = pgTable(
+  "plan",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    appId: uuid("app_id")
+      .notNull()
+      .references(() => app.id, { onDelete: "restrict" }),
+    name: text("name").notNull(),
+    interval: planInterval("interval").notNull(),
+    trialDays: integer("trial_days").notNull().default(0),
+    stripePriceId: text("stripe_price_id").notNull().unique(),
+    entitlementKey: text("entitlement_key").notNull(),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique("plan_app_name_interval").on(table.appId, table.name, table.interval),
+    index("plan_app").on(table.appId),
+    check("plan_trial_days", sql`${table.trialDays} between 0 and 365`),
+    check(
+      "plan_entitlement_key_format",
+      sql`${table.entitlementKey} ~ ${sql.raw(`'${KEY_PATTERN}'`)}`,
+    ),
+  ],
+);

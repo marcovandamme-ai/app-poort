@@ -1,0 +1,12 @@
+**/node_modules
+.git
+.github
+.claude
+docs
+e2e
+tooling
+infra/.env
+infra/.env.*
+!infra/.env.example
+**/*.test.ts
+**/test-*.ts

@@ -19,6 +19,7 @@ export const testApp = (overrides: Partial<AppDeps> = {}) =>
     gate: fakeGate(),
     health: { pingDatabase: async () => true, version: "test" },
     publicUrl: "https://poort.example",
+    hsts: false,
     logError: () => undefined,
     ...overrides,
   });

@@ -5,6 +5,27 @@
 	admin off
 }
 
+# Eén app achter de poort: `import achter_poort <slug> <upstream>`.
+# `route` houdt de volgorde vast zoals hij hier staat; zonder `route` sorteert Caddy de
+# regels en zou hij de identiteit van de poort weer weghalen (bevinding B-003).
+(achter_poort) {
+	route {
+		# 1. Weghalen wat de bezoeker zelf meestuurt (CVE-2026-30851).
+		request_header -X-Poort-User
+		request_header -X-Poort-Entitlements
+		# 2. De poort vragen. De app-naam staat hier vast: de bezoeker kan hem niet kiezen.
+		forward_auth poort:3000 {
+			uri /gate/verify
+			header_up X-Poort-App {args[0]}
+			copy_headers X-Poort-User X-Poort-Entitlements
+		}
+		# 3. Doorsturen zonder de cookies van de poort: een app krijgt nooit de sessie in handen.
+		reverse_proxy {args[1]} {
+			header_up Cookie "(^|; *)(__Secure-|__Host-)?poort[._-][^=;]*=[^;]*" ""
+		}
+	}
+}
+
 # De poort zelf. /gate/* is alleen voor Caddy, nooit voor bezoekers.
 :8080 {
 	@gate path /gate /gate/*
@@ -12,17 +33,8 @@
 	reverse_proxy poort:3000
 }
 
-# Proefapp achter de poort. Een nieuwe app aansluiten = dit blok kopiëren
-# met een eigen poort en upstream, plus één regel in de tabel `app`.
+# Proefapp. Een nieuwe app aansluiten = zo'n blok met een eigen poort,
+# plus één regel in de tabel `app`.
 :8081 {
-	# Eerst weghalen wat de bezoeker zelf meestuurt (CVE-2026-30851).
-	request_header -X-Poort-User
-	request_header -X-Poort-Entitlements
-	forward_auth poort:3000 {
-		uri /gate/verify
-		# Vast per blok: de bezoeker kan niet kiezen welke app wordt gecontroleerd.
-		header_up X-Poort-App proefapp
-		copy_headers X-Poort-User X-Poort-Entitlements
-	}
-	reverse_proxy proefapp:3001
+	import achter_poort proefapp proefapp:3001
 }

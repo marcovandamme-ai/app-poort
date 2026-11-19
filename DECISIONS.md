@@ -11,3 +11,10 @@
 | D-008 | 2026-11-19 | Eén container-image voor poort, proefapp en migratie | Eén build, één versie |
 | D-009 | 2026-11-19 | `audit_log.user_id` zonder foreign key | Het spoor moet blijven bestaan na het verwijderen van een account |
 | D-010 | 2026-11-19 | Fase 1: de poort is voor iedereen dicht (geen sessies, geen toegang) | Inloggen komt in fase 2, betalen in fase 3; dicht is de veilige stand |
+| D-011 | 2026-11-19 | Caddy-regels per app in `route { }`, als snippet `achter_poort` | B-003: zonder `route` sorteert Caddy de regels en haalt hij de identiteit van de poort weg |
+| D-012 | 2026-11-19 | Cookies van de poort beginnen met `poort.` en gaan nooit door naar een app | B-006 |
+| D-013 | 2026-11-19 | HSTS standaard uit; `HSTS=true` alleen op een eigen domein | B-007: HSTS geldt voor alle poorten van een hostnaam |
+| D-014 | 2026-11-19 | Database via losse `PG*`-variabelen; `DATABASE_URL` alleen in tests en CI | B-013 |
+| D-015 | 2026-11-19 | Eén toegangsregel per abonnement (`entitlement.subscription_id`) | B-010 |
+| D-016 | 2026-11-19 | Gebruiker verwijderen kan pas nadat de Stripe-kant is afgesloten (`restrict`) | B-009 |
+| D-017 | 2026-11-19 | Testbestanden draaien na elkaar | Ze delen één testdatabase |

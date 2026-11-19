@@ -16,5 +16,11 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["tooling/**/*.ts", "apps/**/*.ts", "packages/**/*.ts"]
+  "include": [
+    "tooling/**/*.ts",
+    "apps/**/*.ts",
+    "packages/**/*.ts",
+    "e2e/**/*.ts",
+    "vitest.config.ts"
+  ]
 }

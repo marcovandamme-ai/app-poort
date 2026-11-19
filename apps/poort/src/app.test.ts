@@ -48,15 +48,6 @@ describe("GET /gate/verify", () => {
     expect(response.headers.get("X-Poort-Entitlements")).toBe("basis,pro");
   });
 
-  it("ignores identity headers sent by the visitor", async () => {
-    const response = await testApp().request(
-      "/gate/verify",
-      viaCaddy("/", { "X-Poort-User": "admin", "X-Poort-Entitlements": "pro" }),
-    );
-    expect(response.status).toBe(302);
-    expect(response.headers.get("X-Poort-User")).toBeNull();
-  });
-
   it("answers 400 when the request did not come through a Caddy site block", async () => {
     const response = await testApp().request("/gate/verify");
     expect(response.status).toBe(400);
@@ -106,5 +97,12 @@ describe("errors", () => {
     const response = await testApp().request("/health");
     expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
     expect(response.headers.get("X-Frame-Options")).toBe("SAMEORIGIN");
+  });
+
+  it("sends HSTS only when it is switched on", async () => {
+    const off = await testApp().request("/health");
+    expect(off.headers.get("Strict-Transport-Security")).toBeNull();
+    const on = await testApp({ hsts: true }).request("/health");
+    expect(on.headers.get("Strict-Transport-Security")).toContain("max-age");
   });
 });

@@ -9,11 +9,19 @@ x-app: &app
   read_only: true
   cap_drop: [ALL]
   security_opt: ["no-new-privileges:true"]
+  networks: [intern]
+
+x-database: &database
+  PGHOST: db
+  PGUSER: poort
+  PGDATABASE: poort
+  PGPASSWORD: ${POSTGRES_PASSWORD:?zet POSTGRES_PASSWORD in .env}
 
 services:
   db:
     image: postgres:17
     restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
     environment:
       POSTGRES_USER: poort
       POSTGRES_DB: poort
@@ -32,22 +40,21 @@ services:
     restart: "no"
     command: sh -c "node packages/db/src/migrate.ts && node packages/db/src/seed.ts"
     environment:
-      DATABASE_URL: postgres://poort:${POSTGRES_PASSWORD}@db:5432/poort
+      <<: *database
       PROEFAPP_URL: ${PROEFAPP_URL:?zet PROEFAPP_URL in .env}
     depends_on:
       db: { condition: service_healthy }
-    networks: [intern]
 
   poort:
     <<: *app
     command: node apps/poort/src/server.ts
     environment:
-      DATABASE_URL: postgres://poort:${POSTGRES_PASSWORD}@db:5432/poort
+      <<: *database
       PUBLIC_URL: ${PUBLIC_URL:?zet PUBLIC_URL in .env}
       APP_VERSION: ${APP_VERSION:-dev}
+      HSTS: ${HSTS:-false}
     depends_on:
       migrate: { condition: service_completed_successfully }
-    networks: [intern]
     healthcheck:
       test:
         [
@@ -57,26 +64,46 @@ services:
           "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
         ]
       interval: 10s
-      timeout: 3s
+      timeout: 4s
       retries: 6
 
   proefapp:
     <<: *app
     command: node apps/proefapp/src/server.ts
-    networks: [intern]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 4s
+      retries: 6
 
   caddy:
-    image: caddy:2
+    # Minimaal 2.11.4; de regels in de Caddyfile dekken CVE-2026-30851 ook zelf af.
+    image: caddy:2.11.4
     restart: unless-stopped
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
+      - caddy-config:/config
     ports:
       - "127.0.0.1:${POORT_PORT:-8450}:8080"
       - "127.0.0.1:${PROEFAPP_PORT:-8451}:8081"
     depends_on:
       poort: { condition: service_healthy }
+      proefapp: { condition: service_healthy }
     networks: [intern]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 4s
+      retries: 6
 
 networks:
   intern:
@@ -84,3 +111,4 @@ networks:
 volumes:
   db-data:
   caddy-data:
+  caddy-config:
