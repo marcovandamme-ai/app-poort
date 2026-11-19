@@ -1,5 +1,5 @@
 {
-  "id": "97d2c1ca-e634-47e1-b368-e46600956c76",
+  "id": "95126a53-41e5-4d79-a965-983a06700174",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -515,7 +515,7 @@
           "name": "subscription_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "key": {
           "name": "key",
@@ -538,7 +538,7 @@
         },
         "source": {
           "name": "source",
-          "type": "billing_source",
+          "type": "entitlement_source",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
@@ -552,6 +552,50 @@
         }
       },
       "indexes": {
+        "entitlement_subscription": {
+          "name": "entitlement_subscription",
+          "columns": [
+            {
+              "expression": "subscription_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"entitlement\".\"subscription_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "entitlement_manual": {
+          "name": "entitlement_manual",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "app_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"entitlement\".\"subscription_id\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "entitlement_user_app": {
           "name": "entitlement_user_app",
           "columns": [
@@ -593,29 +637,27 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "entitlement_subscription_id_subscription_id_fk": {
-          "name": "entitlement_subscription_id_subscription_id_fk",
+        "entitlement_subscription_user_app": {
+          "name": "entitlement_subscription_user_app",
           "tableFrom": "entitlement",
           "tableTo": "subscription",
-          "columnsFrom": ["subscription_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": ["subscription_id", "user_id", "app_id"],
+          "columnsTo": ["id", "user_id", "app_id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "entitlement_subscription_id_unique": {
-          "name": "entitlement_subscription_id_unique",
-          "nullsNotDistinct": false,
-          "columns": ["subscription_id"]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
         "entitlement_key_format": {
           "name": "entitlement_key_format",
           "value": "\"entitlement\".\"key\" ~ '^[a-z0-9][a-z0-9_-]{0,62}$'"
+        },
+        "entitlement_manual_has_no_subscription": {
+          "name": "entitlement_manual_has_no_subscription",
+          "value": "(\"entitlement\".\"source\" = 'handmatig') = (\"entitlement\".\"subscription_id\" is null)"
         }
       },
       "isRLSEnabled": false
@@ -639,6 +681,12 @@
         },
         "plan_id": {
           "name": "plan_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "app_id": {
+          "name": "app_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -731,12 +779,12 @@
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
-        "subscription_plan_id_plan_id_fk": {
-          "name": "subscription_plan_id_plan_id_fk",
+        "subscription_plan_app": {
+          "name": "subscription_plan_app",
           "tableFrom": "subscription",
           "tableTo": "plan",
-          "columnsFrom": ["plan_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": ["plan_id", "app_id"],
+          "columnsTo": ["id", "app_id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -747,6 +795,11 @@
           "name": "subscription_source_external",
           "nullsNotDistinct": false,
           "columns": ["source", "external_id"]
+        },
+        "subscription_id_user_app": {
+          "name": "subscription_id_user_app",
+          "nullsNotDistinct": false,
+          "columns": ["id", "user_id", "app_id"]
         }
       },
       "policies": {},
@@ -986,6 +1039,11 @@
           "name": "plan_app_name_interval",
           "nullsNotDistinct": false,
           "columns": ["app_id", "name", "interval"]
+        },
+        "plan_id_app": {
+          "name": "plan_id_app",
+          "nullsNotDistinct": false,
+          "columns": ["id", "app_id"]
         }
       },
       "policies": {},
@@ -1007,6 +1065,11 @@
       "name": "billing_source",
       "schema": "public",
       "values": ["stripe", "app_store", "play"]
+    },
+    "public.entitlement_source": {
+      "name": "entitlement_source",
+      "schema": "public",
+      "values": ["stripe", "app_store", "play", "handmatig"]
     },
     "public.plan_interval": {
       "name": "plan_interval",

@@ -18,3 +18,5 @@
 | D-015 | 2026-11-19 | Eén toegangsregel per abonnement (`entitlement.subscription_id`) | B-010 |
 | D-016 | 2026-11-19 | Gebruiker verwijderen kan pas nadat de Stripe-kant is afgesloten (`restrict`) | B-009 |
 | D-017 | 2026-11-19 | Testbestanden draaien na elkaar | Ze delen één testdatabase |
+| D-018 | 2026-11-19 | Handmatige toegang (`handmatig`) zonder abonnement mogelijk | B-027: testaccount, coulance, herstel door de beheerder |
+| D-019 | 2026-11-19 | Seed stopt met een fout als de proefapp op een ander adres staat | B-029 |

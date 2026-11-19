@@ -57,9 +57,12 @@ describe("decideGate", () => {
 
   it("rejects input that is not a verify request", async () => {
     expect(await decideGate(fakeGate(), null)).toEqual({ kind: "invalid" });
-    expect(await decideGate(fakeGate(), { ...request, uri: "/".repeat(5000) })).toEqual({
-      kind: "invalid",
-    });
+    expect(await decideGate(fakeGate(), { ...request, uri: 5 })).toEqual({ kind: "invalid" });
+  });
+
+  it("still decides for a very long address, and returns to the app root", async () => {
+    const decision = await decideGate(fakeGate(), { ...request, uri: `/${"a".repeat(5000)}` });
+    expect(decision).toEqual({ kind: "login", returnTo: `${APP.publicUrl}/` });
   });
 
   it("sends signed-in visitors without access to pricing", async () => {

@@ -34,6 +34,12 @@ const gate = () =>
 const upstream = () =>
   new Hono()
     .get("/__spiegel", (c) => c.json(Object.fromEntries(c.req.raw.headers)))
+    .get("/__zet-cookies", (c) => {
+      c.header("Set-Cookie", "poort.session_token=VAN-DE-APP; Path=/", { append: true });
+      c.header("Set-Cookie", "__Secure-poort.session_token=VAN-DE-APP; Path=/", { append: true });
+      c.header("Set-Cookie", "thema=donker; Path=/", { append: true });
+      return c.text("ok");
+    })
     .route(
       "/",
       createProefapp(createCounter(), () => undefined),

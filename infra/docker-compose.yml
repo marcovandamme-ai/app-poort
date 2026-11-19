@@ -86,7 +86,9 @@ services:
     # Minimaal 2.11.4; de regels in de Caddyfile dekken CVE-2026-30851 ook zelf af.
     image: caddy:2.11.4
     restart: unless-stopped
+    # Het Caddy-programma in de image draagt zelf NET_BIND_SERVICE; zonder start het niet.
     cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
     security_opt: ["no-new-privileges:true"]
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro

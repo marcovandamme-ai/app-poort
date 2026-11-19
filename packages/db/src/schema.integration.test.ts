@@ -14,7 +14,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("schema (integration)", () => {
   const addSubscription = async (externalId: string) => {
     const [row] = await db
       .insert(subscription)
-      .values({ userId: "u1", planId, source: "stripe", externalId, status: "active" })
+      .values({ userId: "u1", planId, appId, source: "stripe", externalId, status: "active" })
       .returning({ id: subscription.id });
     if (row === undefined) throw new Error("subscription niet aangemaakt");
     return row.id;
@@ -103,10 +103,42 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("schema (integration)", () => {
     expect(await db.select().from(entitlement)).toHaveLength(1);
   });
 
+  it("refuses access that does not match its subscription", async () => {
+    const [other] = await db
+      .insert(app)
+      .values({ slug: "ander", name: "Ander", publicUrl: "https://ander.example" })
+      .returning({ id: app.id });
+    await db.insert(user).values({ id: "u2", name: "Ander", email: "ander@example.com" });
+    const subscriptionId = await addSubscription("sub_3");
+    const base = { key: "basis", source: "stripe" as const, subscriptionId };
+    const wrongUser = { ...base, userId: "u2", appId };
+    const wrongApp = { ...base, userId: "u1", appId: other?.id ?? "" };
+    await expect(db.insert(entitlement).values(wrongUser)).rejects.toThrow();
+    await expect(db.insert(entitlement).values(wrongApp)).rejects.toThrow();
+    const wrongPlanApp = {
+      userId: "u1",
+      planId,
+      appId: other?.id ?? "",
+      source: "stripe" as const,
+      externalId: "sub_4",
+      status: "active",
+    };
+    await expect(db.insert(subscription).values(wrongPlanApp)).rejects.toThrow();
+  });
+
+  it("allows one manual grant per user, app and key, and only without a subscription", async () => {
+    const manual = { userId: "u2", appId, key: "basis", source: "handmatig" as const };
+    await db.insert(entitlement).values(manual);
+    await expect(db.insert(entitlement).values(manual)).rejects.toThrow();
+    const stripeWithout = { ...manual, key: "pro", source: "stripe" as const };
+    await expect(db.insert(entitlement).values(stripeWithout)).rejects.toThrow();
+  });
+
   it("refuses to delete a user who still has a subscription", async () => {
     await expect(db.execute(sql`delete from "user" where id = 'u1'`)).rejects.toThrow();
     await db.execute(sql`delete from subscription where user_id = 'u1'`);
     await db.execute(sql`delete from "user" where id = 'u1'`);
-    expect(await db.select().from(entitlement)).toHaveLength(0);
+    const left = await db.select({ userId: entitlement.userId }).from(entitlement);
+    expect(left).toEqual([{ userId: "u2" }]);
   });
 });

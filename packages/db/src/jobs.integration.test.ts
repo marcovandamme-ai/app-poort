@@ -26,7 +26,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("migrate, seed and queries (int
 
   it("registers the proefapp once and never overwrites it", async () => {
     expect(await seedProefapp(env)).toBe(true);
-    expect(await seedProefapp({ ...env, PROEFAPP_URL: "https://ander.example" })).toBe(false);
+    expect(await seedProefapp(env)).toBe(false);
+    await expect(seedProefapp({ ...env, PROEFAPP_URL: "https://ander.example" })).rejects.toThrow(
+      /staat geregistreerd op https:\/\/node3\.example:8451/,
+    );
     expect(await findActiveAppBySlug(db, "proefapp")).toMatchObject({
       slug: "proefapp",
       publicUrl: "https://node3.example:8451",

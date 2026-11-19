@@ -53,6 +53,8 @@ export const plan = pgTable(
   },
   (table) => [
     unique("plan_app_name_interval").on(table.appId, table.name, table.interval),
+    // Target of the composite foreign key that keeps subscription.app_id equal to the plan's app.
+    unique("plan_id_app").on(table.id, table.appId),
     index("plan_app").on(table.appId),
     check("plan_trial_days", sql`${table.trialDays} between 0 and 365`),
     check(

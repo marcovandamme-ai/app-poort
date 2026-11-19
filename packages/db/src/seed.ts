@@ -1,10 +1,15 @@
 // Registers the proefapp so the gate recognises it. Never overwrites an existing registration.
 import { OriginSchema } from "@poort/shared";
+import { eq } from "drizzle-orm";
 import { createDb } from "./client.ts";
 import { parseDbEnv } from "./env.ts";
 import { app } from "./schema/index.ts";
 
-/** Returns true when the row was created, false when the proefapp was already registered. */
+/**
+ * Returns true when the row was created, false when it already existed with this address.
+ * Throws when the proefapp is registered at another address: silently keeping the old one
+ * would leave the gate redirecting to the wrong place.
+ */
 export const seedProefapp = async (
   source: Record<string, string | undefined>,
 ): Promise<boolean> => {
@@ -19,7 +24,18 @@ export const seedProefapp = async (
       .values({ slug: "proefapp", name: "Proefapp", publicUrl: publicUrl.data })
       .onConflictDoNothing({ target: app.slug })
       .returning({ id: app.id });
-    return created.length === 1;
+    if (created.length === 1) return true;
+
+    const [existing] = await db
+      .select({ publicUrl: app.publicUrl })
+      .from(app)
+      .where(eq(app.slug, "proefapp"));
+    if (existing?.publicUrl !== publicUrl.data) {
+      throw new Error(
+        `De proefapp staat geregistreerd op ${existing?.publicUrl ?? "onbekend"}, maar PROEFAPP_URL is ${publicUrl.data}. Pas het adres in de tabel app aan of herstel PROEFAPP_URL.`,
+      );
+    }
+    return false;
   } finally {
     await close();
   }

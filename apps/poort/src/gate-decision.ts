@@ -20,7 +20,7 @@ export interface GateDeps {
 export const VerifyRequestSchema = z.object({
   /** Set by Caddy per site block; never taken from the visitor. */
   appSlug: SlugSchema,
-  uri: z.string().max(4096).optional(),
+  uri: z.string().optional(),
   method: z.string().max(16).optional(),
   cookie: z.string().optional(),
 });
@@ -34,9 +34,11 @@ export type GateDecision =
   | { readonly kind: "pricing"; readonly slug: string }
   | { readonly kind: "granted"; readonly userId: string; readonly entitlements: string[] };
 
-/** Only same-origin paths survive; anything else falls back to the app root. */
+const MAX_PATH_LENGTH = 2048;
+
+/** Only same-origin paths of a sane length survive; anything else falls back to the app root. */
 export const safePath = (uri: string | undefined): string => {
-  if (uri === undefined || !uri.startsWith("/")) return "/";
+  if (uri === undefined || !uri.startsWith("/") || uri.length > MAX_PATH_LENGTH) return "/";
   return uri.startsWith("//") || uri.includes("\\") ? "/" : uri;
 };
 

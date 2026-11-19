@@ -60,9 +60,24 @@ describe.skipIf(caddyBin === undefined)("Caddy → poort → app (integration)",
     const cookie = `thema=donker; ${VALID_COOKIE}; __Secure-poort.session_data=x; taal=nl`;
     const response = await ask(`${APP_URL}/__spiegel`, { headers: { Cookie: cookie } });
     const seen = (await response.json()) as Record<string, string>;
-    expect(seen.cookie).not.toContain("poort");
-    expect(seen.cookie).toContain("thema=donker");
-    expect(seen.cookie).toContain("taal=nl");
+    expect(seen.cookie).toBe("thema=donker; taal=nl");
+  });
+
+  it.each([
+    [`${VALID_COOKIE}; thema=donker`, "thema=donker"],
+    [`${VALID_COOKIE}; __Host-poort.x=1; thema=donker`, "thema=donker"],
+    [`poort-eigen=1; poort_ook=2; ${VALID_COOKIE}`, "poort-eigen=1; poort_ook=2"],
+  ])("keeps the remaining Cookie header well-formed for %s", async (cookie, expected) => {
+    const response = await ask(`${APP_URL}/__spiegel`, { headers: { Cookie: cookie } });
+    const seen = (await response.json()) as Record<string, string>;
+    expect(seen.cookie).toBe(expected);
+  });
+
+  it("does not let an app set or overwrite the gate's cookies", async () => {
+    const response = await ask(`${APP_URL}/__zet-cookies`, { headers: { Cookie: VALID_COOKIE } });
+    expect(response.status).toBe(200);
+    const cookies = response.headers.getSetCookie().filter((cookie) => cookie !== "");
+    expect(cookies).toEqual(["thema=donker; Path=/"]);
   });
 
   it.each(["/gate/verify", "/gate", "/GATE/verify", "//gate/verify", "/%67ate/verify", "/gate/"])(

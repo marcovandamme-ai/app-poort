@@ -29,8 +29,8 @@ Versie 2026-11-19 · chat "App-poort"
 | `app` | id, slug (uniek), naam, public_url (uniek, alleen schema+host+poort), actief | Eén regel per aangesloten app; het terugkeeradres na inloggen komt altijd uit `public_url`. Waar het verkeer heen gaat staat alleen in de Caddyfile |
 | `plan` | id, app_id, naam, interval (maand/jaar), proefdagen, stripe_price_id, entitlement_key, actief | Prijs en valuta staan in Stripe |
 | `customer` | user_id (uniek), stripe_customer_id (uniek) | Een gebruiker met klant- of abonnementsregel kan niet verwijderd worden voordat de Stripe-kant is afgesloten |
-| `subscription` | id, user_id, plan_id, bron (stripe/app_store/play), extern_id (uniek), status, periode_einde, opzeggen_bij_einde, respijt_tot | Spiegel; Stripe is de bron |
-| `entitlement` | user_id, app_id, subscription_id (uniek), key, actief, verloopt_op, bron, bijgewerkt_op | Enige tabel die de toegang bepaalt: één regel per abonnement dat toegang geeft, zodat het stoppen van het ene abonnement de toegang van het andere niet weghaalt. Stores voegen later hier in |
+| `subscription` | id, user_id, plan_id, app_id, bron (stripe/app_store/play), extern_id (uniek), status, periode_einde, opzeggen_bij_einde, respijt_tot | Spiegel; Stripe is de bron. `app_id` moet gelijk zijn aan de app van het plan |
+| `entitlement` | user_id, app_id, subscription_id (leeg bij handmatig), key, actief, verloopt_op, bron (ook `handmatig`), bijgewerkt_op | Enige tabel die de toegang bepaalt: één regel per abonnement dat toegang geeft, of een handmatige toekenning door de beheerder. De database dwingt af dat gebruiker en app gelijk zijn aan die van het abonnement. Stores voegen later hier in |
 | `webhook_event` | provider, event_id (uniek samen), type, ontvangen_op, verwerkt_op | Idempotentie |
 | `audit_log` | id, user_id, actie, object, tijdstip, metadata (jsonb) | Zonder betaal- of sessiegegevens |
 
@@ -77,7 +77,7 @@ docs/             specs, architectuur, security-rapport, beheer, oplevering
 | Terugkeer-URL | Open redirect via `terug=` | Adres = geregistreerde `public_url` + pad; nooit uit request-headers |
 | App-keuze | Bezoeker laat een andere app controleren dan hij opvraagt (B-001) | `X-Poort-App` vast per Caddy-blok; `X-Forwarded-Host` wordt niet gebruikt |
 | Geheimen | Sleutels in repo of log | `.env` op node3, Zod-gevalideerd, Gitleaks over de historie, logs zonder tokens |
-| Sessiecookie | Een app achter de poort (of een lek daarin) krijgt het cookie van de poort in handen (B-006) | Caddy haalt alle `poort.*`-cookies weg vóór het verzoek naar een app gaat; ketentest bewaakt dit. Restrisico: andere diensten op dezelfde hostnaam maar een andere poort krijgen het cookie wel; vervalt met een eigen hostnaam voor de poort |
+| Sessiecookie | Een app achter de poort (of een lek daarin) krijgt het cookie van de poort in handen (B-006) | Caddy haalt alle `poort.*`-cookies weg vóór het verzoek naar een app gaat, en ook uit antwoorden van apps (B-026); ketentest bewaakt beide. Restrisico: andere diensten op dezelfde hostnaam maar een andere poort krijgen het cookie wel; vervalt met een eigen hostnaam voor de poort |
 | HSTS | Geldt voor alle poorten van een hostnaam en breekt andere diensten op node3 (B-007) | Standaard uit; alleen `HSTS=true` op een eigen domein |
 | Logboek | Drizzle zet queryparameters (tokens, e-mailadressen) in foutmeldingen (B-005) | `formatError` knipt parameters weg; test bewaakt dit |
 | Beschikbaarheid | Poort plat = alle apps dicht | Healthcheck, automatische herstart, back-up + herstelproef; restrisico thuisverbinding |

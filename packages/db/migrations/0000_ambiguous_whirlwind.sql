@@ -1,4 +1,5 @@
 CREATE TYPE "public"."billing_source" AS ENUM('stripe', 'app_store', 'play');--> statement-breakpoint
+CREATE TYPE "public"."entitlement_source" AS ENUM('stripe', 'app_store', 'play', 'handmatig');--> statement-breakpoint
 CREATE TYPE "public"."plan_interval" AS ENUM('maand', 'jaar');--> statement-breakpoint
 CREATE TYPE "public"."user_role" AS ENUM('klant', 'beheerder');--> statement-breakpoint
 CREATE TYPE "public"."webhook_provider" AS ENUM('stripe', 'revenuecat');--> statement-breakpoint
@@ -71,20 +72,21 @@ CREATE TABLE "entitlement" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" text NOT NULL,
 	"app_id" uuid NOT NULL,
-	"subscription_id" uuid NOT NULL,
+	"subscription_id" uuid,
 	"key" text NOT NULL,
 	"active" boolean DEFAULT false NOT NULL,
 	"expires_at" timestamp with time zone,
-	"source" "billing_source" NOT NULL,
+	"source" "entitlement_source" NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "entitlement_subscription_id_unique" UNIQUE("subscription_id"),
-	CONSTRAINT "entitlement_key_format" CHECK ("entitlement"."key" ~ '^[a-z0-9][a-z0-9_-]{0,62}$')
+	CONSTRAINT "entitlement_key_format" CHECK ("entitlement"."key" ~ '^[a-z0-9][a-z0-9_-]{0,62}$'),
+	CONSTRAINT "entitlement_manual_has_no_subscription" CHECK (("entitlement"."source" = 'handmatig') = ("entitlement"."subscription_id" is null))
 );
 --> statement-breakpoint
 CREATE TABLE "subscription" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" text NOT NULL,
 	"plan_id" uuid NOT NULL,
+	"app_id" uuid NOT NULL,
 	"source" "billing_source" NOT NULL,
 	"external_id" text NOT NULL,
 	"status" text NOT NULL,
@@ -92,7 +94,8 @@ CREATE TABLE "subscription" (
 	"cancel_at_period_end" boolean DEFAULT false NOT NULL,
 	"grace_until" timestamp with time zone,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "subscription_source_external" UNIQUE("source","external_id")
+	CONSTRAINT "subscription_source_external" UNIQUE("source","external_id"),
+	CONSTRAINT "subscription_id_user_app" UNIQUE("id","user_id","app_id")
 );
 --> statement-breakpoint
 CREATE TABLE "webhook_event" (
@@ -130,6 +133,7 @@ CREATE TABLE "plan" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "plan_stripe_price_id_unique" UNIQUE("stripe_price_id"),
 	CONSTRAINT "plan_app_name_interval" UNIQUE("app_id","name","interval"),
+	CONSTRAINT "plan_id_app" UNIQUE("id","app_id"),
 	CONSTRAINT "plan_trial_days" CHECK ("plan"."trial_days" between 0 and 365),
 	CONSTRAINT "plan_entitlement_key_format" CHECK ("plan"."entitlement_key" ~ '^[a-z0-9][a-z0-9_-]{0,62}$')
 );
@@ -139,15 +143,17 @@ ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("
 ALTER TABLE "customer" ADD CONSTRAINT "customer_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "entitlement" ADD CONSTRAINT "entitlement_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "entitlement" ADD CONSTRAINT "entitlement_app_id_app_id_fk" FOREIGN KEY ("app_id") REFERENCES "public"."app"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "entitlement" ADD CONSTRAINT "entitlement_subscription_id_subscription_id_fk" FOREIGN KEY ("subscription_id") REFERENCES "public"."subscription"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "entitlement" ADD CONSTRAINT "entitlement_subscription_user_app" FOREIGN KEY ("subscription_id","user_id","app_id") REFERENCES "public"."subscription"("id","user_id","app_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "subscription" ADD CONSTRAINT "subscription_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "subscription" ADD CONSTRAINT "subscription_plan_id_plan_id_fk" FOREIGN KEY ("plan_id") REFERENCES "public"."plan"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "subscription" ADD CONSTRAINT "subscription_plan_app" FOREIGN KEY ("plan_id","app_id") REFERENCES "public"."plan"("id","app_id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "plan" ADD CONSTRAINT "plan_app_id_app_id_fk" FOREIGN KEY ("app_id") REFERENCES "public"."app"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "audit_log_at" ON "audit_log" USING btree ("at");--> statement-breakpoint
 CREATE INDEX "audit_log_user" ON "audit_log" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "account_user" ON "account" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "session_user" ON "session" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "verification_identifier" ON "verification" USING btree ("identifier");--> statement-breakpoint
+CREATE UNIQUE INDEX "entitlement_subscription" ON "entitlement" USING btree ("subscription_id") WHERE "entitlement"."subscription_id" is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX "entitlement_manual" ON "entitlement" USING btree ("user_id","app_id","key") WHERE "entitlement"."subscription_id" is null;--> statement-breakpoint
 CREATE INDEX "entitlement_user_app" ON "entitlement" USING btree ("user_id","app_id");--> statement-breakpoint
 CREATE INDEX "subscription_user" ON "subscription" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "subscription_plan" ON "subscription" USING btree ("plan_id");--> statement-breakpoint
