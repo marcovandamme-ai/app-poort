@@ -1,0 +1,11 @@
+# Projectregels — app-poort
+- Stack en keuzes: `docs/architectuur.md`. Eisen: `docs/specs.md`. Bevindingen: `docs/bevindingen.md`.
+- `pnpm verify` groen vóór elke commit: lint, typecheck, tests, check:deps, check:lines.
+- Maximaal 150 regels per bronbestand; rond 130 regels opsplitsen.
+- TypeScript strict: geen `any`, geen `!`, geen placeholders of TODO's.
+- Zod aan elke grens: request, env, webhooks. Eén foutformaat: `{ code, message, details? }`.
+- Geheimen alleen in `infra/.env` op de node. Nooit in code, logs, tests of chat.
+- Nieuwe dependency alleen via `dependency-allowlist.json`, na akkoord van Marco.
+- De poort beslist toegang alleen op: sessie, `X-Poort-App` (door Caddy gezet) en de tabel `entitlement`.
+- Elke app achter de poort krijgt in Caddy: `request_header -X-Poort-*`, `forward_auth` met vaste `X-Poort-App`.
+- Niets installeren of draaien op de MacBook. Draaien op node3 via Docker Compose.

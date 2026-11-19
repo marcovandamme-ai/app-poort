@@ -1,0 +1,44 @@
+name: ci
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: poort
+          POSTGRES_PASSWORD: ci-only
+          POSTGRES_DB: poort_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U poort" --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://poort:ci-only@127.0.0.1:5432/poort_test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Enable pnpm
+        run: corepack enable
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Verify (lint, typecheck, test, deps, lines)
+        run: pnpm verify
+      - name: Kwetsbare pakketten
+        run: pnpm audit --audit-level moderate
+      - name: Gelekte sleutels (hele geschiedenis)
+        run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest git /repo --redact --no-banner
+      - name: Caddyfile geldig
+        run: docker run --rm -v "$PWD/infra/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2 caddy validate --config /etc/caddy/Caddyfile
+      - name: Container bouwt
+        run: docker build -f infra/Dockerfile -t app-poort:ci .

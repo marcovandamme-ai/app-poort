@@ -1,0 +1,28 @@
+# Intern stadium: HTTPS wordt afgehandeld door `tailscale serve` op de node;
+# Caddy luistert alleen lokaal (zie docker-compose.yml).
+{
+	auto_https off
+	admin off
+}
+
+# De poort zelf. /gate/* is alleen voor Caddy, nooit voor bezoekers.
+:8080 {
+	@gate path /gate /gate/*
+	respond @gate 404
+	reverse_proxy poort:3000
+}
+
+# Proefapp achter de poort. Een nieuwe app aansluiten = dit blok kopiëren
+# met een eigen poort en upstream, plus één regel in de tabel `app`.
+:8081 {
+	# Eerst weghalen wat de bezoeker zelf meestuurt (CVE-2026-30851).
+	request_header -X-Poort-User
+	request_header -X-Poort-Entitlements
+	forward_auth poort:3000 {
+		uri /gate/verify
+		# Vast per blok: de bezoeker kan niet kiezen welke app wordt gecontroleerd.
+		header_up X-Poort-App proefapp
+		copy_headers X-Poort-User X-Poort-Entitlements
+	}
+	reverse_proxy proefapp:3001
+}

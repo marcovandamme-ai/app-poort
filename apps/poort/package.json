@@ -1,0 +1,12 @@
+{
+  "name": "@poort/poort",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@hono/node-server": "^2.0.0",
+    "@poort/db": "workspace:*",
+    "@poort/shared": "workspace:*",
+    "hono": "^4.13.0",
+    "zod": "^4.1.0"
+  }
+}

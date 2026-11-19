@@ -1,0 +1,86 @@
+name: app-poort
+
+x-app: &app
+  image: ghcr.io/marcovandamme-ai/app-poort:${APP_VERSION:-dev}
+  build:
+    context: ..
+    dockerfile: infra/Dockerfile
+  restart: unless-stopped
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: poort
+      POSTGRES_DB: poort
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?zet POSTGRES_PASSWORD in .env}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks: [intern]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U poort -d poort"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    <<: *app
+    restart: "no"
+    command: sh -c "node packages/db/src/migrate.ts && node packages/db/src/seed.ts"
+    environment:
+      DATABASE_URL: postgres://poort:${POSTGRES_PASSWORD}@db:5432/poort
+      PROEFAPP_URL: ${PROEFAPP_URL:?zet PROEFAPP_URL in .env}
+    depends_on:
+      db: { condition: service_healthy }
+    networks: [intern]
+
+  poort:
+    <<: *app
+    command: node apps/poort/src/server.ts
+    environment:
+      DATABASE_URL: postgres://poort:${POSTGRES_PASSWORD}@db:5432/poort
+      PUBLIC_URL: ${PUBLIC_URL:?zet PUBLIC_URL in .env}
+      APP_VERSION: ${APP_VERSION:-dev}
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    networks: [intern]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+
+  proefapp:
+    <<: *app
+    command: node apps/proefapp/src/server.ts
+    networks: [intern]
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    ports:
+      - "127.0.0.1:${POORT_PORT:-8450}:8080"
+      - "127.0.0.1:${PROEFAPP_PORT:-8451}:8081"
+    depends_on:
+      poort: { condition: service_healthy }
+    networks: [intern]
+
+networks:
+  intern:
+
+volumes:
+  db-data:
+  caddy-data:

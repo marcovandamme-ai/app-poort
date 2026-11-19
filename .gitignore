@@ -1,0 +1,13 @@
+node_modules/
+dist/
+build/
+coverage/
+.expo/
+.turbo/
+.venv/
+.env
+.env.local
+.env.production
+*.log
+.DS_Store
+infra/.env
