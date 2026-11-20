@@ -53,8 +53,10 @@ jobs:
         run: docker build -f infra/Dockerfile -t app-poort:ci .
       - name: Rookproef in de container (migreren, registreren, starten, health)
         run: |
+          # Eigen lege database: de tests laten in poort_test hun eigen gegevens achter.
+          PGPASSWORD=ci-only psql -h 127.0.0.1 -U poort -d poort_test -qc "create database poort_smoke"
           run() { docker run --rm --network host --read-only --cap-drop ALL \
-            -e DATABASE_URL="$TEST_DATABASE_URL" -e PROEFAPP_URL=http://127.0.0.1:8081 \
+            -e DATABASE_URL="postgres://poort:ci-only@127.0.0.1:5432/poort_smoke" -e PROEFAPP_URL=http://127.0.0.1:8081 \
             -e PUBLIC_URL=http://127.0.0.1:8080 "$@"; }
           run app-poort:ci node packages/db/src/migrate.ts
           run app-poort:ci node packages/db/src/seed.ts
