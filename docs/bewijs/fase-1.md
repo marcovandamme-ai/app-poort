@@ -32,13 +32,13 @@ Migratie toegepast en herhaalbaar; de proefapp wordt één keer geregistreerd en
 ## Containerproef zonder Docker
 Met alleen de bestanden die `.dockerignore` toelaat: `pnpm install --frozen-lockfile --prod`, migreren, registreren en starten werken; `/health` geeft 200 en de poort verwijst door naar inloggen.
 
+## GitHub Actions (20 nov, run 44732158112, pull request 1)
+Alle stappen groen: lint, typecheck, 150 tests met PostgreSQL 17 en Caddy 2.11.4, `pnpm audit`, Gitleaks over de hele geschiedenis, `docker build`, rookproef in de container (alleen-lezen, zonder rechten) en de hele stack met Docker Compose: healthchecks groen, `/health` 200, proefapp 302 naar inloggen, `/gate/verify` 404.
+
 ## Nog niet bewezen
-- `docker build` en Docker Compose zelf (alleen-lezen bestandssysteem, healthchecks, startvolgorde, rechten van de Caddy-container, B-025): in de bouwomgeving draait geen Docker. De CI-stap staat klaar; eerste bewijs komt van GitHub Actions en van node3.
-- `tailscale serve` vóór Caddy op node3.
-- Gitleaks: staat in CI, lokaal niet gedraaid.
-- Of de Docker-tag `caddy:2.11.4` bestaat: de versie zelf bestaat (binary opgehaald), het register kon ik niet bereiken.
+- De stack op node3 zelf, met `tailscale serve` ervoor.
 
 ## Onafhankelijke review
 Drie rondes door een aparte reviewer met schone context (architect, code, security), alleen-lezen. Ronde 1: 22 bevindingen. Ronde 2: 19 hersteld, 3 deels, 7 nieuwe. Ronde 3: 5 hersteld, 2 deels, 4 nieuwe. De herstellingen van ronde 3 (B-032, B-034, B-035) zijn getest maar niet meer door de reviewer bekeken: de grens is 3 rondes per poort.
 
-Open na fase 1: B-006 en B-026 (eigen hostnaam), B-008 (images vastzetten op digest), B-021 (aparte databasegebruiker), B-025 en B-035 (bewijs van Docker Compose in GitHub Actions), B-033 (fase 3).
+Open na fase 1: B-006 en B-026 (eigen hostnaam), B-008 (images vastzetten op digest), B-021 (aparte databasegebruiker), B-033 (fase 3).
